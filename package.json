@@ -1,11 +1,13 @@
 {
   "name": "@totra/base-ts",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "The one to rule all. Business logic framework for typescript.",
-  "main": "index.js",
+  "type": "module",
+  "main": "dist/index.js",
   "scripts": {
     "start": "npx ts-node examples/app.ts",
-    "test": "vitest"
+    "prepublish": "tsc",
+    "release": "npm run test && npm run prepublish && npm publish"
   },
   "author": "",
   "license": "ISC",
