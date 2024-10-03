@@ -46,7 +46,7 @@ export class Service<
 
   async loadEntity(entityId: string) {
     return new this.ServiceEntity(
-      ...(await this.repository.hydrateReadOnlyEntity(entityId))
+      await this.repository.hydrateReadOnlyEntity(entityId)
     );
   }
 
@@ -94,7 +94,7 @@ export class Service<
         const [context, repositoryMeta] = await this.repository.hydrateEntity(
           command.entityId
         );
-        const useCase = new UseCase(...context);
+        const useCase = new UseCase(context);
         useCase.handle(command);
         this.repository.applyInternalEvents(
           command.entityId,

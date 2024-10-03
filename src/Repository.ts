@@ -7,10 +7,10 @@ export interface Repository<
 > {
   hydrateReadOnlyEntity: (
     entityId: string
-  ) => Promise<ConstructorParameters<E>>;
+  ) => Promise<ConstructorParameters<E>[0]>;
   hydrateEntity: (
     entityId: string
-  ) => Promise<[ConstructorParameters<E>, RepositoryMeta]>;
+  ) => Promise<[ConstructorParameters<E>[0], RepositoryMeta]>;
   applyInternalEvents: (
     entityId: string,
     internalEvents: EntityClassInternalEvents<E>[],
