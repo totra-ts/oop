@@ -66,4 +66,19 @@ export class DemoInventoryRepository extends InventoryRepository<Meta> {
     const product = await fetchProductFromDatabaseOrWhatever(entityId);
     return [[product], { tx: null }];
   }
+
+  async hydrateReadOnlyEntity(entityId: string): Promise<
+    {
+      id: string;
+      lots: {
+        id: string;
+        location: string;
+        quantity: number;
+        onHoldQuantity: number;
+      }[];
+    }[]
+  > {
+    const product = await fetchProductFromDatabaseOrWhatever(entityId);
+    return [product];
+  }
 }

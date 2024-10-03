@@ -1,6 +1,10 @@
 import type { DomainEvent } from "./DomainEvent.js";
 import type { InternalEvent } from "./InternalEvent.js";
 
+type OptionalTimestamp<T> = T extends { timestamp: number }
+  ? Omit<T, "timestamp"> & { timestamp?: number }
+  : T;
+
 export abstract class Entity<
   IEvent extends InternalEvent<string, string, unknown> = InternalEvent<
     string,
@@ -20,8 +24,11 @@ export abstract class Entity<
     return this.reduceInternalEventsToDomainEvents(this.getInternalEvents());
   }
 
-  protected recordEvent(event: IEvent) {
-    this.internalEvents.push(event);
+  protected recordEvent<E extends IEvent>(event: OptionalTimestamp<E>) {
+    this.internalEvents.push({
+      ...event,
+      timestamp: event.timestamp ?? Date.now(),
+    } as E);
   }
 
   abstract reduceInternalEventsToDomainEvents(events: IEvent[]): DEvent[];

@@ -20,6 +20,7 @@ export const createInventoryService = <
     repository: p.repository,
     eventBus: p.eventBus,
     observer: p.observer,
+    entity: WarehousedProduct,
   });
 
   inventoryService.register(ReceiveInventoryCommand, [

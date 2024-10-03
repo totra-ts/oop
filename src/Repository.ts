@@ -5,6 +5,9 @@ export interface Repository<
   E extends ClassType<Entity>,
   RepositoryMeta extends unknown
 > {
+  hydrateReadOnlyEntity: (
+    entityId: string
+  ) => Promise<ConstructorParameters<E>>;
   hydrateEntity: (
     entityId: string
   ) => Promise<[ConstructorParameters<E>, RepositoryMeta]>;

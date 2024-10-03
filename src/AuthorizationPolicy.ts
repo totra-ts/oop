@@ -5,4 +5,8 @@ export interface AuthorizationPolicy {
   readonly policyId: string;
   readonly principal: AuthorizationPolicyPrincipal;
   readonly allow: Set<string>;
+  readonly entityBoundedStatements?: {
+    readonly allow: Set<string>;
+    readonly entities: Set<string>;
+  }[];
 }

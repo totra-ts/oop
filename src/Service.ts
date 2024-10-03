@@ -6,7 +6,7 @@ import type {
 import type { AuthorizationPolicy } from "./AuthorizationPolicy.js";
 import { Command } from "./Command.js";
 import { Entity } from "./Entity.js";
-import { UnauthorizedError } from "./Errors.js";
+import { UnauthorizedError, UndefinedCommandError } from "./Errors.js";
 import type { EventBus } from "./EventBus.js";
 import type { FeatureFlag } from "./FeatureFlag.js";
 import type { Observer } from "./Observer.js";
@@ -25,19 +25,29 @@ export class Service<
   private observer: Observer | undefined;
   private eventBus: EventBus<RepositoryMeta<R>>;
   private repository: R;
+  private ServiceEntity: ClassType<E>;
 
   constructor({
     repository,
     eventBus,
     observer,
+    entity,
   }: {
     repository: R;
     eventBus: EventBus<RepositoryMeta<R>>;
     observer?: Observer;
+    entity: ClassType<E>;
   }) {
     this.repository = repository;
     this.eventBus = eventBus;
     this.observer = observer;
+    this.ServiceEntity = entity;
+  }
+
+  async loadEntity(entityId: string) {
+    return new this.ServiceEntity(
+      ...(await this.repository.hydrateReadOnlyEntity(entityId))
+    );
   }
 
   register<T extends Command<string, unknown>>(
@@ -54,13 +64,24 @@ export class Service<
     this.observer?.recordCommand?.(authorizationPolicy.principal, command);
     const behavior = this.map.get(command.constructor as any);
 
-    const missingPolicies = command.requiredPolicies.filter(
-      (policy) => !authorizationPolicy.allow.has(policy)
-    );
+    const missingPolicies = command.requiredPolicies
+      .filter((policy) => !authorizationPolicy.allow.has(policy))
+      .filter((policy) => {
+        for (const statement of authorizationPolicy.entityBoundedStatements ??
+          []) {
+          if (
+            statement.allow.has(policy) &&
+            statement.entities.has(command.entityId)
+          ) {
+            return false;
+          }
+        }
+        return true;
+      });
 
     try {
       if (missingPolicies.length) throw new UnauthorizedError(missingPolicies);
-      if (!behavior) return;
+      if (!behavior) throw new UndefinedCommandError(command);
 
       for (const [flag, UseCase] of behavior) {
         const flagValue = await flag.enabled(authorizationPolicy.principal);

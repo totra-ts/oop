@@ -17,3 +17,7 @@ export type RepositoryMeta<R> = R extends {
 }
   ? T
   : never;
+
+export type Prettify<T> = {
+  [K in keyof T]: T[K];
+} & {};

@@ -16,13 +16,3 @@ export abstract class Command<Type extends string, Payload extends unknown> {
     this.requiredPolicies = requiredPolicies;
   }
 }
-
-// export class PlaceOrder extends Command<"PlaceOrder", { orderId: string }> {
-//   static readonly requiredPolicies = ["order:place"] as const;
-
-//   constructor(payload: { orderId: string }) {
-//     super("PlaceOrder", payload);
-//   }
-// }
-
-// PlaceOrder.requiredPolicies;
