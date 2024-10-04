@@ -1,5 +1,5 @@
 export abstract class Command<Type extends string, Payload extends unknown> {
-  readonly commandId: string;
+  readonly commandId?: string;
   readonly type: Type;
   readonly payload: Payload;
   readonly entityId: string;
@@ -7,7 +7,7 @@ export abstract class Command<Type extends string, Payload extends unknown> {
 
   constructor(p: {
     type: Type;
-    commandId: string;
+    commandId?: string;
     entityId: string;
     payload: Payload;
     requiredPolicies: readonly string[];

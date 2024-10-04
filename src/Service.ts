@@ -82,6 +82,12 @@ export class Service<
     try {
       if (missingPolicies.length) throw new UnauthorizedError(missingPolicies);
       if (!behavior) throw new UndefinedCommandError(command);
+      if (command.commandId && this.repository.recordCommand) {
+        const { commandProcessed } = await this.repository.recordCommand(
+          command
+        );
+        if (commandProcessed) return;
+      }
 
       for (const [flag, UseCase] of behavior) {
         const flagValue = await flag.enabled(authorizationPolicy.principal);

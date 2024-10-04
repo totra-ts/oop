@@ -1,10 +1,14 @@
 import type { ClassType, EntityClassInternalEvents } from "./_types.js";
+import type { Command } from "./Command.js";
 import { Entity } from "./Entity.js";
 
 export interface Repository<
   E extends ClassType<Entity>,
   RepositoryMeta extends unknown
 > {
+  recordCommand?: (
+    command: Command<string, unknown>
+  ) => Promise<{ commandProcessed: boolean }>;
   hydrateReadOnlyEntity: (
     entityId: string
   ) => Promise<ConstructorParameters<E>[0]>;
