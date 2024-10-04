@@ -10,6 +10,7 @@ export * from "./FeatureFlag.js";
 export * from "./InternalEvent.js";
 export * from "./Observer.js";
 export * from "./PolicyOrchestrator.js";
+export * from "./ReadModel.js";
 export * from "./Repository.js";
 export * from "./Service.js";
 export * from "./UseCase.js";
