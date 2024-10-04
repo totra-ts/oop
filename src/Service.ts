@@ -17,10 +17,19 @@ export class Service<
   E extends Entity,
   R extends Repository<ClassType<E>, any>
 > {
-  private map: Map<
+  private commandHandlerMap: Map<
     ClassType<Command<string, unknown>>,
-    [FeatureFlag, ClassType<E & UseCase<Command<string, unknown>>>][]
+    {
+      requiredPolicies: string[];
+      behavior: [
+        FeatureFlag,
+        ClassType<E & UseCase<Command<string, unknown>>>
+      ][];
+    }
   > = new Map();
+
+  private commandMap: Map<string, ClassType<Command<string, unknown>>> =
+    new Map();
 
   private observer: Observer | undefined;
   private eventBus: EventBus<RepositoryMeta<R>>;
@@ -50,11 +59,23 @@ export class Service<
     );
   }
 
-  register<T extends Command<string, unknown>>(
-    command: ClassType<T>,
-    behavior: [FeatureFlag, ClassType<E & UseCase<T>>][]
-  ) {
-    this.map.set(command, behavior as any);
+  hydrateCommand(p: unknown) {
+    if (typeof p !== "object") return null;
+    if (!p || !("type" in p) || typeof p.type !== "string") return null;
+    const CommandClass = this.commandMap.get(p.type);
+    if (!CommandClass) return null;
+    return new CommandClass(p);
+  }
+
+  register<CT extends string, C extends Command<CT, unknown>>(p: {
+    requiredPolicies: string[];
+    command: ClassType<C>;
+    behavior: [FeatureFlag, ClassType<E & UseCase<C>>][];
+  }) {
+    this.commandHandlerMap.set(p.command, {
+      requiredPolicies: p.requiredPolicies.slice(),
+      behavior: p.behavior as any,
+    });
   }
 
   async handle(
@@ -62,26 +83,25 @@ export class Service<
     authorizationPolicy: AuthorizationPolicy
   ) {
     this.observer?.recordCommand?.(authorizationPolicy.principal, command);
-    const behavior = this.map.get(command.constructor as any);
-
-    const missingPolicies = command.requiredPolicies
-      .filter((policy) => !authorizationPolicy.allow.has(policy))
-      .filter((policy) => {
-        for (const statement of authorizationPolicy.entityBoundedStatements ??
-          []) {
-          if (
-            statement.allow.has(policy) &&
-            statement.entities.has(command.entityId)
-          ) {
-            return false;
-          }
-        }
-        return true;
-      });
-
+    const handler = this.commandHandlerMap.get(command.constructor as any);
     try {
+      if (!handler) throw new UndefinedCommandError(command);
+      const missingPolicies = handler.requiredPolicies
+        .filter((policy) => !authorizationPolicy.allow.has(policy))
+        .filter((policy) => {
+          for (const statement of authorizationPolicy.entityBoundedStatements ??
+            []) {
+            if (
+              statement.allow.has(policy) &&
+              statement.entities.has(command.entityId)
+            ) {
+              return false;
+            }
+          }
+          return true;
+        });
+
       if (missingPolicies.length) throw new UnauthorizedError(missingPolicies);
-      if (!behavior) throw new UndefinedCommandError(command);
       if (command.commandId && this.repository.recordCommand) {
         const { commandProcessed } = await this.repository.recordCommand(
           command
@@ -89,7 +109,7 @@ export class Service<
         if (commandProcessed) return;
       }
 
-      for (const [flag, UseCase] of behavior) {
+      for (const [flag, UseCase] of handler.behavior) {
         const flagValue = await flag.enabled(authorizationPolicy.principal);
         if (!flagValue) continue;
         this.observer?.recordFeatureFlag?.(

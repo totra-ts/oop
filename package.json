@@ -1,6 +1,6 @@
 {
   "name": "@totra/base-ts",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "Business logic framework for typescript. Innovate and rewrite fearlessly. Keep your core logic intact.",
   "type": "module",
   "main": "dist/index.js",
