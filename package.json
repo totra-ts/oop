@@ -1,6 +1,6 @@
 {
   "name": "@totra/base-ts",
-  "version": "0.0.26",
+  "version": "0.0.31",
   "description": "CQRS / Authorization / FeatureFlag / Event-Driven / DDD / Observable framework for typescript. Innovate and rewrite fearlessly. Keep your core logic intact.",
   "type": "module",
   "main": "dist/index.js",

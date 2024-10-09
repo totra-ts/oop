@@ -7,6 +7,13 @@ export class ValidationError extends Error {
   }
 }
 
+export class InvariantError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvariantError";
+  }
+}
+
 export class UndefinedCommandError<
   T extends Command<string, any>
 > extends Error {
