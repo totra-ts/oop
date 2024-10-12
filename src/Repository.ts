@@ -22,3 +22,37 @@ export interface Repository<
     repositoryMeta: RepositoryMeta
   ) => Promise<void>;
 }
+
+export class SimpleRepository<E extends ClassType<Entity>>
+  implements Repository<E, null>
+{
+  private hydrate: (entityId: string) => Promise<EntityProps<E>>;
+  private applyEvents: (
+    entityId: string,
+    internalEvents: EntityClassInternalEvents<E>[]
+  ) => Promise<void>;
+  constructor(ctx: {
+    hydrate: (entityId: string) => Promise<EntityProps<E>>;
+    apply: (
+      entityId: string,
+      internalEvents: EntityClassInternalEvents<E>[]
+    ) => Promise<void>;
+  }) {
+    this.hydrate = ctx.hydrate;
+    this.applyEvents = ctx.apply;
+  }
+  hydrateReadOnlyEntity(entityId: string) {
+    return this.hydrate(entityId);
+  }
+  async hydrateEntity(entityId: string): Promise<[EntityProps<E>, null]> {
+    const entity = await this.hydrate(entityId);
+    return [entity, null] as const;
+  }
+  applyInternalEvents(
+    entityId: string,
+    internalEvents: EntityClassInternalEvents<E>[],
+    _repositoryMeta: null
+  ) {
+    return this.applyEvents(entityId, internalEvents);
+  }
+}

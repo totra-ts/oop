@@ -63,3 +63,6 @@ export class InMemoryRepository<E extends ClassType<Entity>>
     this.entities.set(entityId, entity);
   }
 }
+
+export const wait = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));

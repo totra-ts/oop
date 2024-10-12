@@ -3,7 +3,10 @@ import type {
   EntityClassInternalEvents,
   RepositoryMeta,
 } from "./_types.js";
-import type { AuthorizationPolicy } from "./AuthorizationPolicy.js";
+import {
+  getMissingPolicies,
+  type AuthorizationPolicy,
+} from "./AuthorizationPolicy.js";
 import { Command } from "./Command.js";
 import { Entity } from "./Entity.js";
 import { UnauthorizedError, UndefinedCommandError } from "./Errors.js";
@@ -86,21 +89,11 @@ export class Service<
     const handler = this.commandHandlerMap.get(command.constructor as any);
     try {
       if (!handler) throw new UndefinedCommandError(command);
-      const missingPolicies = handler.requiredPolicies
-        .filter((policy) => !authorizationPolicy.allow.has(policy))
-        .filter((policy) => {
-          for (const statement of authorizationPolicy.entityBoundedStatements ??
-            []) {
-            if (
-              statement.allow.has(policy) &&
-              statement.entities.has(command.entityId)
-            ) {
-              return false;
-            }
-          }
-          return true;
-        });
-
+      const missingPolicies = getMissingPolicies({
+        entityId: command.entityId,
+        requiredPolicies: handler.requiredPolicies,
+        authorizationPolicy,
+      });
       if (missingPolicies.length) throw new UnauthorizedError(missingPolicies);
       if (command.commandId && this.repository.recordCommand) {
         const { commandProcessed } = await this.repository.recordCommand(

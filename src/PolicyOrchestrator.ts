@@ -1,14 +1,16 @@
 import type { DomainEvent } from "./DomainEvent.js";
 
+type DomainEventType<T> = T extends DomainEvent<infer DEType> ? DEType : string;
+
 export class PolicyOrchestrator {
   private policies: Map<string, ((domainEvent: DomainEvent<string>) => void)[]>;
   constructor() {
     this.policies = new Map();
   }
 
-  registerPolicy<DE extends string>(
-    domainEvent: DE,
-    policy: (domainEvent: DomainEvent<DE>) => void
+  registerPolicy<E extends DomainEvent<string>>(
+    domainEvent: DomainEventType<E>,
+    policy: (domainEvent: E) => void
   ) {
     const currentPolicies = this.policies.get(domainEvent) ?? [];
     currentPolicies.push(policy as (domainEvent: DomainEvent<string>) => void);
