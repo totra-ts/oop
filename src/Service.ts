@@ -115,7 +115,7 @@ export class Service<
         );
         const useCase = new UseCase(context);
         useCase.handle(command);
-        this.repository.applyInternalEvents(
+        await this.repository.applyInternalEvents(
           command.entityId,
           useCase.getInternalEvents() as EntityClassInternalEvents<
             ClassType<E>
