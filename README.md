@@ -87,6 +87,46 @@ export class WarehousedProduct extends Entity<
 }
 ```
 
+### Commands
+
+Commands are validated data containers processed by UseCases. Their encapsulation allows for queuing, batching, and other processing techniques, enhancing scalability and resource management.
+
+Commands can be written out as follows:
+
+```ts
+export class ChangeUserEmailCommand extends Command<"User:ChangeEmail", {email: string}> {
+  constructor(p: {
+    userId: string;
+    payload: {
+      email: string;
+    };
+  }) {
+    validateEmail(p.payload.email) // input validation
+    super({
+      type: "User:ChangeEmail",
+      entityId: p.userId,
+      payload: p.payload,
+    })
+  }
+}
+```
+
+Or, if you are using zod as a validator, they can be written as follows:
+
+```ts
+export const ChangeUserEmailCommand = zodCommand({
+  type: "User:ChangeEmail", // Unique name of command for observation
+  schema: z.object({      
+    userId: z.string(),
+    email: z.string().email(), // validation
+  }),
+  entityId: (p) => p.userId,   // mapping of schema to entityId
+});
+```
+
+Crucially, data must be packaged into commands to ensure that the data has been sanitized, removing basic validation out of the business logic.
+
+
 ### Use Cases - Entity Behavior
 
 UseCases encapsulate specific behaviors related to entities. Each behavior is implemented as an inherited child of the entity, promoting:
@@ -94,26 +134,273 @@ UseCases encapsulate specific behaviors related to entities. Each behavior is im
 - Clear testing processes
 - Extensibility with minimal changes to the base entity
 - Scalability with isolated use cases
-- 
-### Commands
 
-Commands are validated data containers processed by corresponding UseCases. Their encapsulation allows for queuing, batching, and other processing techniques, enhancing scalability and resource management.
+UseCases can be defined like this:
+
+```ts
+export class WriteOffInventory extends Warehouse implements UseCase<WriteOffInventoryCommand> {
+  handle(command: WriteOffInventoryCommand) {
+    if(stuff) {
+      this.recordEvent({...})
+    }
+    this.recordEvent({...}) // Note multiple events may be emitted from the UseCase
+  }
+}
+```
+
+This makes writing tests exceptionally easy:
+
+```ts
+describe("WriteOffInventory", () => {
+  it("does something if stuff", () => {
+    // arrange
+    const command = new WriteOffInventoryCommand({ ... })
+    const useCase = new WriteOffInventory({ ... })
+    // act
+    useCase.handle(command)
+    // assert
+    const events = useCase.getInternalEvents()
+    expect(events.map(event => event.type))
+      .toEqual(['Removed', 'Moved'])
+  }) 
+})
+```
 
 ### Repositories
 
 Repositories handle the retrieval and persistence of entity state, providing all necessary context for business logic to execute.
 
+They can be defined like this:
+
+```ts
+const repository: Repository<
+typeof Warehouse, 
+{ 
+  // second type argument is provided by the user containing transaction details
+  // in the case that you need acid compliance between reading and writing
+  transaction: TX
+}> = {
+  // Utility function if you need to do a reverse look up from the service
+  // Note that it does not return a transaction
+  hydrateReadOnlyEntity: async (entityId) => {
+    ...
+    return warehouseData
+  },
+  // This is what the service calls to get the context to hydrate
+  // the entity.
+  hydrateEntity: async (entityId) => { 
+    ...
+    return [warehouseData, { transaction: dbTx }]
+  },
+  // This is what the service calls to translate events into a persisted
+  // representation.
+  applyInternalEvents: async (
+    entityId, 
+    events, 
+    { transaction } // same transaction as returned from hydrate entity
+  ) => {
+    // apply events in the order they came in
+    for(const event of events) {
+      switch (event.type) {
+        case 'Moved':
+          ...
+          break
+        ...
+      }
+    }
+  }
+}
+```
+
+Not every database uses transactional context. In these cases, the repository can be made significantly more simple.
+
+```ts
+const repository = new SimpleRepository<typeof Warehouse>({
+  hydrate: async (entityId) => {
+    ...
+    return warehouseData
+  },
+  applyEvents: async (entityId, events) => {
+    // apply events in the order they came in
+    for(const event of events) {
+      switch (event.type) {
+        case 'Moved':
+          ...
+          break
+        ...
+      }
+    }
+  }
+})
+```
+
 ### Feature Flags
 
 Feature flags in TOTRA offer advanced capabilities beyond simple toggles, enabling A/B testing, separation of deployment and release, and gradual rollouts. They are integral to the framework.
+
+How can they do that? By simply allowing you to dynamically decide
+whether they are enabled or not on a per-user basis.
+
+```ts
+const betaUsersFF: FeatureFlag = {
+  name: 'betaUsers',
+  // This is where the magic happens
+  // Given the principal from the auth policy,
+  // determine whether the flag is enabled or not
+  enabled: async (userId) => {
+    return isUserABetaUser(userId)
+  }
+}
+```
+
+This allows you to do interesting things like a feature flag which
+slowly adds more and more users to a new feature as they use the system.
+
+```ts
+const createSlowReleaseFlag = (name: string) => {
+  name: 'slowRelease-' + name,
+  enabled: async (userId) => {
+    const cachedGroup = await isPartOfSubset(userId, name)
+    if (cachedGroup === undefined) {
+      if (Math.random() < 0.001) {
+        await addToSubset(userId, name)
+        return true
+      } else {
+        return false
+      }
+    }
+    return cachedGroup
+  },
+}
+```
+
+Whether you ought to do that is a different story, but you've got the power here!
 
 ### Event Bus
 
 The Event Bus facilitates the translation of internal events into domain events, allowing other services to respond appropriately.
 
+```ts
+const eventBus: EventBus<{
+  transaction: TX // same TX as provided from repo, enabling the outbox pattern
+}> = {
+  publish: async (events, { transaction }) => {
+    ...
+  }
+}
+```
+
+### Authorization Policies
+
+To guard behaviors from users who should not have access, TOTRA uses an authorization policy construct. Defining a policy is simple:
+
+```ts
+type Agent = 
+| {
+  type: "system";
+} 
+| {
+  type: "admin";
+  email: string;
+} 
+| {
+  type: "public";
+  ip: string;
+}
+// Declaration merging happening here
+export interface AuthorizationPolicyPrincipal {
+  agent: Agent
+}
+
+const userAuthPolicy: AuthorizationPolicy = {
+  policyId: "admin-user-policy",
+  principal: {
+    agent: {
+      type: "admin",
+      email: "email@example.com",
+    }
+  },
+  // Allow is a set of permissions that the principal is allowed
+  // to access. This is consumed by the service.
+  allow: new Set(["admin:warehouse:write-off"]),
+}
+```
+
 ### Services
 
-Services compose FeatureFlags, Repositories, and UseCases into a unified package, simplifying coordination between different components. They support both backend and frontend operations, promoting isomorphism.
+Services compose FeatureFlags, Repositories, and UseCases into a unified package, simplifying coordination between different components.
+
+```ts
+// This sets up all of the internal coordination
+// and observation.
+const warehouseService = new Service({
+  entity: Warehouse,
+  repository: warehouseRepository,
+  eventBus: eventBus,
+})
+
+// Individual behaviors and commands need to be coupled
+// with feature flags and required policies
+warehouseService.register({
+  // Required policies will be matched against the
+  // provided auth policy to ensure the user has
+  // access
+  requiredPolicies: ['admin:warehouse:write-off'],
+  // Lookups are using the pointer of the command's prototype
+  // which, beyond being fast, ensures that the service will only
+  // process commands which have been validated
+  command: WriteOffInventoryCommand,
+  behavior: [
+    // If beta user, we will use the new behavior
+    // Ultimately, the old one will likely be removed
+    // once we are happy with the the new one
+    [betaUsersFF, WriteOffInventory2],
+    // enabledFF would always return true
+    // to ensure that all non-beta users that have access
+    // will be able to write off using the OG behavior 
+    [enabledFF, WriteOffInventory]
+  ]
+})
+```
+
+Once a service has been defined and behaviors have been registered to it,
+it's time to start using it!
+
+```ts
+await warehouseService.handle(
+  new WriteOffInventoryCommand({
+    ...
+  }),
+  userAuthPolicy
+)
+```
+
+### Policy Orchestrator
+
+The policy orchestrator listens to the event bus, and given domain events, will perform additional effects.
+
+```ts
+const orchestrator = new PolicyOrchestrator()
+
+orchestrator.registerPolicy(
+  "Inventory:WrittenOff",
+  async (event) => {
+    const authPolicy = {
+      policyId: "InventoryWrittenOffPolicy",
+      principal: { agent: { type: "system" } },
+      allow: new Set("notification:send")
+    }
+    ...
+    notificationService.handle(
+      new NotifyInventoryWrittenOffCommand({
+        ...
+      })
+    )
+  },
+)
+```
+
+Orchestrators enable business logic to be broken out from what needs to be transactionally / temporally coupled from what needs to happen in a sequence but not immediate.
 
 ### Conclusion
 
@@ -129,6 +416,8 @@ While functional programming is appealing, classes provide a more ergonomic and 
 
 The goal is to maintain a stable interface, minimizing breaking changes. TOTRA's core has no external dependencies, allowing for straightforward updates.
 
+The biggest question is naming conventions - we want this to be as intuitive as possible, and we think there are still some changes that could help with that.
+
 ### What's the release roadmap?
 
 TOTRA is being validated in various projects to ensure interface stability. The roadmap includes:
@@ -138,8 +427,6 @@ TOTRA is being validated in various projects to ensure interface stability. The 
  - Publishing
 
 We aim to publish in the coming months.
-
-## For LLMs
 
 Overview
 TOTRA is a TypeScript-based library designed for building event-driven applications. It emphasizes a modular architecture with support for commands, events, and services. This prompt provides guidance on how to interact with and leverage the TOTRA library for application development.
