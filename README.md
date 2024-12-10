@@ -4,6 +4,12 @@
 
 TOTRA is an extraordinarily flexible business logic framework designed to manage complex projects. Instead of being prescriptive about infrastructure or deployment, TOTRA focuses solely on building manageable and adaptable software.
 
+## Installation
+
+```
+npm install / bun add / yarn add @totra/base-ts
+```
+
 ## When NOT to Use TOTRA
 
 - ❌ If your application is primarily CRUD with minimal business logic.
