@@ -132,6 +132,8 @@ const inMemoryTaskRepository = new InMemoryRepository<typeof Task>(
         entity.isCompleted = true;
         break;
       default: {
+        const t: never = event;
+        console.log("unknown event", t);
         break;
       }
     }

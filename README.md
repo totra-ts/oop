@@ -41,7 +41,7 @@ TOTRA is built for software that leverages current innovations while remaining a
 
 ## TL;DR
 
-Explore the `examples` directory for a sample application featuring a partially implemented warehouse service. You can envision how the authorization policy could be integrated via middleware (e.g., Express, API Gateway) or any preferred authorization manager. Any context provider can create commands for processing.
+Explore the `examples/simple.ts` file featuring a partially implemented todo service. You can envision how the authorization policy could be integrated via middleware (e.g., Express, API Gateway) or any preferred authorization manager.
 
 ## Overview
 
@@ -432,8 +432,8 @@ The biggest question is naming conventions - we want this to be as intuitive as 
 
 TOTRA is being validated in various projects to ensure interface stability. The roadmap includes:
 
- - Interface verification and adjustments
- - Enable granular resource access in access policies
- - Publishing
+- Integrate [Standard Schema](https://github.com/standard-schema/standard-schema?tab=readme-ov-file)
+- Refine names
+- Publish stable 1.0
 
 We aim to publish in the coming months.
