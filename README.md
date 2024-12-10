@@ -10,6 +10,8 @@ TOTRA is an extraordinarily flexible business logic framework designed to manage
 npm install / bun add / yarn add @totra/base-ts
 ```
 
+For consistency's sake and to later support a more functional approach, this will likely change in the future to `@totra/oop`
+
 ## When NOT to Use TOTRA
 
 - ❌ If your application is primarily CRUD with minimal business logic.
@@ -416,7 +418,9 @@ This documentation serves as an initial introduction to the framework. To fully 
 
 ### Why use classes instead of functions?
 
-While functional programming is appealing, classes provide a more ergonomic and type-safe experience. TOTRA balances ease of use with the power of object-oriented design.
+Why not both?
+
+OOP seems to have more literature for these types of concepts, so we thought it would be best to start here and nail it, and then follow up with a functional version later.
 
 ### How will breaking changes be managed?
 
